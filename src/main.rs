@@ -9,10 +9,9 @@ fn main() {
         .read_line(&mut line)
         .expect("Failed to read line");
 
-    let splitted: Vec<&str> = line.split(' ').collect();
-
-    let a: u16 = splitted[0].trim().parse().unwrap();
-    let b: u16 = splitted[1].trim().parse().unwrap();
-
-    println!("{}", a + b);
+    let mut sum: u16 = 0;
+    for i in line.split(' ') {
+        sum += i.trim().parse::<u16>().unwrap();
+    }
+    println!("{}", sum);
 }
