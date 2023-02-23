@@ -11,7 +11,7 @@ fn main() {
 
     let mut sum: u16 = 0;
     for i in line.split(' ') {
-        sum += i.trim().parse::<u16>().unwrap();
+        sum += i.trim().parse::<u16>().expect("Failed to parse");
     }
     println!("{}", sum);
 }
