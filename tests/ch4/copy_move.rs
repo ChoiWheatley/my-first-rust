@@ -72,24 +72,73 @@ fn mutable_string_ref() {
 }
 
 #[test]
-fn mutable_references_are_not_copyable() {
+fn mutable_references1() {
     let mut n = 0;
     {
         let a = &mut n; //move occurs because `a` has type `&mut i32`, which does not implement the `Copy` trait
         let b = a; // ownership of a is moved to b
         assert_eq!(0, *b);
-        // assert_eq!(0, *a); // Error, a는 이미 b에게 소유권을 넘겨줬다.
+        // assert_eq!(0, *a); // Err, a already handed ownership to b
     }
 
-    /* 얘는 왜 되는거지????? 두 b는 모두 같은 타입인데??? */
     {
         let a = &mut n;
-        let b: &mut i32 = a; // ownership of a is moved to b
+        let b: &mut i32 = a; // ownership of &mut *a(implicitly) is moved to b
         assert_eq!(0, *b);
-        *b += 1;
         // lifetime of b ended, a regains permission
-        assert_eq!(1, *a); // Ok? 이유를 모르겠다
+        assert_eq!(0, *a); // Ok, a borrows ownership of n now
+
+        *a = 2;
     }
+    assert_eq!(2, n);
+}
+
+#[test]
+fn mutable_references2() {
+    fn test(_: &mut i32) {}
+
+    let mut i = 1;
+    let ref_i = &mut i;
+    // test(&mut i); // Err! i is currently read-locked
+
+    test(ref_i); // same as `&mut *ref_i`
+
+    let another_ref_i = &mut i;
+    test(another_ref_i); // same as `&mut *another_ref_i`
+}
+
+#[test]
+fn immutable_reference() {
+    fn test(_: &i32) {}
+
+    let i = 1;
+    let ref_i = &i;
+    test(&i); // Ok, i is currently not read-locked
+    test(ref_i); // immutable ref COPIED into parameter
+
+    let another_ref_i = &i;
+    test(another_ref_i); // immutable ref COPIED into parameter
+}
+
+#[test]
+fn outlive() {
+    let mut i = 1;
+
+    // mutable reference cannot outlive
+    // let j = {
+    //     let x = &mut i;
+    //     let y = &x;
+    //     &**y
+    // }; // x is dropped. y become dangling pointer
+
+    // immutable reference COPIED out
+    let j = {
+        let x = &i;
+        let y = &x;
+        &**y
+    }; // x dropped, but y has
+
+    println!("{}", j);
 }
 
 #[test]
