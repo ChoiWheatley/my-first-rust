@@ -7,14 +7,19 @@ fn main() -> io::Result<()> {
 
     let mut itr = stdin().lines();
     for tc in 1..=t {
-        let submit = itr
+        let mapped: Vec<i32> = itr
             .next()
             .unwrap()?
             .split(' ')
             .map(|e| e.parse::<i32>().expect("parse error!"))
-            .reduce(|acc, e| acc + e)
-            .unwrap_or_default();
-        println!("Case #{}: {}", tc, submit);
+            .collect();
+        println!(
+            "Case #{}: {} + {} = {}",
+            tc,
+            mapped[0],
+            mapped[1],
+            mapped[0] + mapped[1]
+        );
     }
 
     Ok(())
