@@ -3,25 +3,9 @@ name = "my-first-rust"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "3135"
-path = "src/boj/3135.rs"
-
-[[bin]]
-name = "2558"
-path = "src/boj/2558.rs"
-
-[[bin]]
-name = "10950"
-path = "src/boj/10950.rs"
-
-[[bin]]
-name = "10951"
-path = "src/boj/10951.rs"
-[[bin]]
-name = "10952"
-path = "src/boj/10952.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = ["boj", "ch1", "guessing-game"]
 
 [dependencies]
