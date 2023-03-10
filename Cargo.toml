@@ -5,11 +5,11 @@ edition = "2021"
 
 [[bin]]
 name = "3135"
-path = "src/boj/3135/main.rs"
+path = "src/boj/3135.rs"
 
 [[bin]]
 name = "2558"
-path = "src/boj/2558/main.rs"
+path = "src/boj/2558.rs"
 
 [[bin]]
 name = "10950"
