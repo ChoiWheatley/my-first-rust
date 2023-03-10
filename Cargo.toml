@@ -11,6 +11,10 @@ path = "src/boj/3135/main.rs"
 name = "2558"
 path = "src/boj/2558/main.rs"
 
+[[bin]]
+name = "10950"
+path = "src/boj/10950.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
