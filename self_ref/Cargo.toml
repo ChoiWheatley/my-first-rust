@@ -8,3 +8,4 @@ descriptiion = "studying self referential structs in rust with https://dev.to/ar
 
 [dependencies]
 ouroboros = "0.15" 
+derivative = "2.2.0"
