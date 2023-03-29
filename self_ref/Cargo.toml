@@ -1,0 +1,10 @@
+[package]
+name = "self_ref"
+version = "0.1.0"
+edition = "2021"
+descriptiion = "studying self referential structs in rust with https://dev.to/arunanshub/self-referential-structs-in-rust-33cm"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ouroboros = "0.15" 
