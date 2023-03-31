@@ -46,6 +46,15 @@ impl<T> List<T> {
         //     None => None,
         // }
     }
+
+    /// get a borrowed data from top
+    pub fn peek(&self) -> Option<&T> {
+        self.head.as_ref().map(|boxed_node| &boxed_node.elem)
+    }
+
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
+        self.head.as_mut().map(|boxed_node| &mut boxed_node.elem)
+    }
 }
 
 impl<T> Drop for List<T> {
@@ -96,5 +105,22 @@ mod tests {
         list.push(6);
 
         drop(list);
+    }
+
+    #[test]
+    fn peek() {
+        let mut list = List::new();
+        assert_eq!(list.pop(), None);
+        assert_eq!(list.peek(), None);
+        assert_eq!(list.peek_mut(), None);
+
+        list.push(1).push(2).push(3);
+
+        assert_eq!(list.peek(), Some(&3));
+        assert_eq!(list.peek_mut(), Some(&mut 3));
+
+        list.peek_mut().map(|val| *val = 20230331);
+        assert_eq!(list.peek(), Some(&20230331));
+        assert_eq!(list.pop(), Some(20230331));
     }
 }
