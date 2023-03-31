@@ -1,11 +1,9 @@
 [package]
-name = "my-first-rust"
+name = "too_many_linked_lists"
 version = "0.1.0"
 edition = "2021"
+description = "tutorial from https://rust-unofficial.github.io/too-many-lists/index.html"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[workspace]
-members = ["boj", "ch1", "guessing-game", "ch5", "self_ref", "too_many_linked_lists"]
 
 [dependencies]
