@@ -31,7 +31,7 @@ impl<T> List<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        // Option::take can make some option type to other option type very easily
+        // Option::map can make some option type to other option type very easily
         // and elegantly
         self.head.take().map(|node| {
             self.head = node.next;
