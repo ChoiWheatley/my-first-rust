@@ -66,6 +66,30 @@ impl<T> Drop for List<T> {
     }
 }
 
+/// IntoIterator only exposes method `into_iter`.
+/// Concrete implementations are in custom iterator `IntoIter<T>`
+impl<T> IntoIterator for List<T> {
+    type Item = T;
+
+    type IntoIter = IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter(self)
+    }
+}
+
+/// IntoIter **consumes** data members
+pub struct IntoIter<T>(List<T>);
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    /// just call `pop` over and over to ownership of top item
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,5 +146,19 @@ mod tests {
         list.peek_mut().map(|val| *val = 20230331);
         assert_eq!(list.peek(), Some(&20230331));
         assert_eq!(list.pop(), Some(20230331));
+    }
+
+    #[test]
+    fn into_iter() {
+        let mut list = List::new();
+        list.push(1).push(2).push(3);
+
+        let mut iter = list.into_iter();
+        // now `iter` loses its ownership UwU
+        assert_eq!(Some(3), iter.next());
+        assert_eq!(Some(2), iter.next());
+        assert_eq!(Some(1), iter.next());
+
+        assert_eq!(None, iter.next());
     }
 }
