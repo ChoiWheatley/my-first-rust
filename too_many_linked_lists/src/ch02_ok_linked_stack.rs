@@ -5,23 +5,23 @@
 ///     - lifetimes
 ///     - custom iterators
 
-pub struct List {
-    head: Link,
+pub struct List<T> {
+    head: Link<T>,
 }
 
-struct Node {
-    elem: i32,
-    next: Link,
+struct Node<T> {
+    elem: T,
+    next: Link<T>,
 }
 
-type Link = Option<Box<Node>>;
+type Link<T> = Option<Box<Node<T>>>;
 
-impl List {
+impl<T> List<T> {
     pub fn new() -> Self {
         List { head: None }
     }
 
-    pub fn push(&mut self, elem: i32) -> &mut Self {
+    pub fn push(&mut self, elem: T) -> &mut Self {
         let new_node = Box::new(Node {
             elem,
             next: self.head.take(), // We no more have to depend on `mem::replace`
@@ -30,7 +30,7 @@ impl List {
         self
     }
 
-    pub fn pop(&mut self) -> Option<i32> {
+    pub fn pop(&mut self) -> Option<T> {
         // Option::take can make some option type to other option type very easily
         // and elegantly
         self.head.take().map(|node| {
@@ -48,7 +48,7 @@ impl List {
     }
 }
 
-impl Drop for List {
+impl<T> Drop for List<T> {
     fn drop(&mut self) {
         let mut cur_link = self.head.take();
         while let Some(mut boxed_node) = cur_link {
