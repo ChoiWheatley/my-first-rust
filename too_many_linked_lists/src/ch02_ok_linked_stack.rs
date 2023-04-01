@@ -72,8 +72,10 @@ pub struct IntoIter<T>(List<T>);
 pub struct Iter<'a, T> {
     next: Option<&'a Node<T>>,
 }
-/// IterMut borrows with mutation
-pub struct IterMut<T>(List<T>);
+/// IterMut borrows with mutation, have same lifetime as `Iter<'a, T>`
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
 
 impl<T> List<T> {
     /// List contains head, which is type of `Option<Box<Node<T>>>` pew...
@@ -93,6 +95,12 @@ impl<T> List<T> {
             next: self.head.as_deref(), // same as below
                                         // next: self.head.as_ref().map(|node| node.as_ref()),  // same as below
                                         // next: self.head.as_ref().map(|boxed_node| &**boxed_node),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut {
+            next: self.head.as_deref_mut(),
         }
     }
 }
@@ -127,6 +135,19 @@ impl<'a, T> Iterator for Iter<'a, T> {
             self.next = node.next.as_deref(); // same as below
                                               // self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
             &node.elem
+        })
+    }
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // We have to *consume* self.next because it's mutable.
+        self.next.take().map(|node| {
+            self.next = node.next.as_deref_mut();
+            // `&` can be coppied, `&mut` can not be coppied
+            &mut node.elem
         })
     }
 }
@@ -223,6 +244,21 @@ mod tests {
 
         // iter dosen't consume anything!!!
         assert_eq!(list.peek(), Some(&"wheatley"));
+    }
+
+    #[test]
+    fn iter_mut() {
+        let mut list = List::new();
+        list.push(0).push(1).push(2).push(3);
+        let mut iter = list.iter_mut();
+        let mut _top = iter.next().unwrap();
+        *_top = 4;
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), Some(&4));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&0));
     }
 
     #[test]
