@@ -11,49 +11,40 @@ struct Node<T> {
     next: Link<T>,
 }
 
-/// Persistent List, which conforms Functional Persistent.
 pub struct List<T> {
     head: Link<T>,
 }
 
 #[allow(unused)]
 impl<T> List<T> {
-    /// create a empty list, which can be the beginning of persistent structure
+    /// create a new empty list, which can be a root
     pub fn new() -> Self {
         List { head: None }
     }
 
-    /// create a new list with elem, append this from previous list's head
-    ///
-    /// A.prepend(B) returns B -> A
+    /// create a new list containing an element, which also connects to previous list
     pub fn prepend(&self, elem: T) -> List<T> {
         List {
             head: Some(Rc::new(Node {
                 elem,
-                next: self.head.clone(), // this is a stack-like persistent list!
+                next: self.head.as_ref().map(|rc_node| rc_node.clone()),
             })),
         }
     }
 
-    /// create a new list with whole list, except head
-    ///
-    /// (B -> A).tail() returns A
+    /// create a new list of this branch, except of head node
     pub fn tail(&self) -> List<T> {
         List {
-            // `and_then` is very similar to `map`, but allows us to pass a
-            // function which returns an `Option` type itself. `and_then`
-            // flattens the result which is also known as `flatmap`
-            head: self.head.as_ref().and_then(|node| node.next.clone()),
+            head: self.head.as_ref().and_then(|rc_node| rc_node.next.clone()),
         }
     }
 
-    /// get an head's element
-    pub fn head(&self) -> Option<&T> {
-        self.head.as_ref().map(|node| &node.elem)
+    /// get a element inside head of this branch
+    pub fn head(&self) -> Option<&'_ T> {
+        self.head.as_ref().map(|rc_node| &rc_node.elem)
     }
 }
 
-/// adaptor for iterating `List`
 pub struct Iter<'a, T> {
     next: Option<&'a Node<T>>,
 }
@@ -63,7 +54,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next.map(|node| {
-            self.next = node.next.as_ref().map(|rc_node| rc_node.as_ref());
+            self.next = node.next.as_deref();
             &node.elem
         })
     }
@@ -73,21 +64,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 impl<T> List<T> {
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            next: self.head.as_ref().map(|rc_node| rc_node.as_ref()),
-        }
-    }
-}
-
-impl<T> Drop for List<T> {
-    /// drop all lists which is only owned by once in this branch
-    fn drop(&mut self) {
-        let mut cur = self.head.take();
-        while let Some(node) = cur {
-            if let Ok(node) = Rc::try_unwrap(node) {
-                cur = node.next.map(|rc_node| rc_node);
-            } else {
-                break;
-            }
+            next: self.head.as_deref(),
         }
     }
 }
@@ -113,5 +90,29 @@ mod tests {
         // branching from node 3
         let branch1 = list.prepend(4);
         let branch2 = list.prepend(5);
+
+        assert_eq!(branch1.head(), Some(&4));
+        assert_eq!(branch1.tail().head(), Some(&3));
+        assert_eq!(branch1.tail().tail().head(), Some(&2));
+        assert_eq!(branch1.tail().tail().tail().head(), Some(&1));
+
+        assert_eq!(branch2.head(), Some(&5));
+        assert_eq!(branch2.tail().head(), Some(&3));
+        assert_eq!(branch2.tail().tail().head(), Some(&2));
+        assert_eq!(branch2.tail().tail().tail().head(), Some(&1));
+    }
+
+    #[test]
+    fn iter() {
+        let mut list = List::new();
+        let queue = "Hello, world!".chars().collect::<Vec<_>>();
+        queue.iter().for_each(|c| {
+            list = list.prepend(c);
+        });
+        let answer_iter = queue.iter().rev();
+        let list_iter = list.iter();
+        assert!(list_iter
+            .zip(answer_iter)
+            .all(|(&list, answer)| list == answer));
     }
 }
