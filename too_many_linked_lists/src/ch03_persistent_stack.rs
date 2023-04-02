@@ -1,10 +1,10 @@
 /// Will learn...
 /// - Clear garbage pointers without GC via Reference counting.
 /// - Persistent list [as this blog talks about](https://blog.hansenlin.com/persistent-data-structures-part-i-the-persistent-list-156f20df3139) which is a linked list with every nodes are head and every `next` nodes are tail, assures imutability.
-/// - Know the use of Reference Counter, aka `Rc` struct
-use std::rc::Rc;
+/// - Know the use of Reference Counter, aka `Arc` struct
+use std::sync::Arc;
 
-type Link<T> = Option<Rc<Node<T>>>;
+type Link<T> = Option<Arc<Node<T>>>;
 
 struct Node<T> {
     elem: T,
@@ -25,7 +25,7 @@ impl<T> List<T> {
     /// create a new list containing an element, which also connects to previous list
     pub fn prepend(&self, elem: T) -> List<T> {
         List {
-            head: Some(Rc::new(Node {
+            head: Some(Arc::new(Node {
                 elem,
                 next: self.head.as_ref().map(|rc_node| rc_node.clone()),
             })),
@@ -74,8 +74,8 @@ impl<T> Drop for List<T> {
     fn drop(&mut self) {
         let mut cur = self.head.take(); // take head's ownership
         while let Some(rc_node) = cur {
-            // `try_unwrap` literally tries to unwrap Rc value if it has only one strong reference.
-            if let Ok(mut node) = Rc::try_unwrap(rc_node) {
+            // `try_unwrap` literally tries to unwrap Arc value if it has only one strong reference.
+            if let Ok(mut node) = Arc::try_unwrap(rc_node) {
                 cur = node.next.take();
             } else {
                 break;
