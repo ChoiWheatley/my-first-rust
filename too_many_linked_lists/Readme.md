@@ -76,4 +76,17 @@ let option_borrowed: Option<&Node> = option_box_node.as_ref().map::<&Node, _>(|e
 // Box, Node automatically dereferenced. `as_deref` converts `Option<T>` to `Option<&T::Target>` where Target is our desired type 
 let option_borrowed: Option<&Node> = option_box_node.as_deref(); 
 ```
-    
+
+# ch03_persistent_stack
+
+I have never experience of persistent stack, so I searched for it. [Hans Enline](https://blog.hansenlin.com/persistent-data-structures-part-i-the-persistent-list-156f20df3139) thankfully elaborates concepts of 'em.
+
+Persistent list is like a linked-list, but every node is a list. What does that mean? A list can contain sub lists which can be from 0-sized to infinite-sized of list. Only important thing is connections. Each list doesn't care about other lists. They don't care their neighbor is empty, has thousands of branches, whatever.
+
+Branches!! Yes! Git brances are persistent list! every git commit is HEAD of its own list. You can manually branch from existing node that you want. You can iterate through git logs which only contains the differences of previous commit. The final code in your repository's HEAD is just a summation of whole diffs which cannot be changed forever. This is a persistent list and you and me are using nowadays.
+
+So, there was the use of persistent list, then how to impliment it? What is some common protocols?
+
+In this example, we use `prepend`, `tail` and `head` for interfaces, repectively similar to `push`, `pop`, `get`.
+
+TODO: right a doc about things I have learned in this chapter
