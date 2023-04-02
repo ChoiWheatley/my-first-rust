@@ -69,6 +69,21 @@ impl<T> List<T> {
     }
 }
 
+impl<T> Drop for List<T> {
+    /// drop nodes which has only one link, this branch
+    fn drop(&mut self) {
+        let mut cur = self.head.take(); // take head's ownership
+        while let Some(rc_node) = cur {
+            // `try_unwrap` literally tries to unwrap Rc value if it has only one strong reference.
+            if let Ok(mut node) = Rc::try_unwrap(rc_node) {
+                cur = node.next.take();
+            } else {
+                break;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,8 +119,9 @@ mod tests {
 
     #[test]
     fn iter() {
-        let mut list = List::new();
         let queue = "Hello, world!".chars().collect::<Vec<_>>();
+        let mut list = List::new();
+
         queue.iter().for_each(|c| {
             list = list.prepend(c);
         });
