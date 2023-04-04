@@ -78,7 +78,10 @@ impl From<isize> for Direction {
             1 => Direction::East,
             2 => Direction::South,
             3 => Direction::West,
-            other => Self::from(other % DIRS),
+            other => {
+                let tmp = other % DIRS;
+                Self::from(if tmp < 0 { tmp + DIRS } else { tmp })
+            }
         }
     }
 }
@@ -271,5 +274,18 @@ mod test {
         assert_eq!(-Direction::South, Direction::North);
         assert_eq!(-Direction::East, Direction::West);
         assert_eq!(-Direction::West, Direction::East);
+    }
+
+    #[test]
+    fn into_direction() {
+        assert_eq!(Direction::from(-4), Direction::North);
+        assert_eq!(Direction::from(-3), Direction::East);
+        assert_eq!(Direction::from(-2), Direction::South);
+        assert_eq!(Direction::from(-1), Direction::West);
+        assert_eq!(Direction::from(0), Direction::North);
+        assert_eq!(Direction::from(1), Direction::East);
+        assert_eq!(Direction::from(2), Direction::South);
+        assert_eq!(Direction::from(3), Direction::West);
+        assert_eq!(Direction::from(4), Direction::North);
     }
 }
