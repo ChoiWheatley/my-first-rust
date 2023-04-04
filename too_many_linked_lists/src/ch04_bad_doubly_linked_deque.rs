@@ -3,7 +3,7 @@
 // It is implemented via "blanket implementations" both
 // `Rc` and `RefCell`, which can cause infinite `borrow_mut()` loop!
 // use std::borrow::BorrowMut;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 /// Let's make doubly-linked deque!!!
 ///
@@ -62,6 +62,17 @@ impl<T> List<T> {
             Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
         })
     }
+
+    /// We cannot hand over `Option<&T>`, because `RefCell::borrow()` will be destroied
+    /// when this function returns. So we have no choice to return the return type of itself: `Ref`
+    ///
+    /// In order to hide `Node` to users, we have to convert `Option<Ref<Node<T>>>` to `Option<Ref<T>>`,
+    /// which can be done by `Ref::map`, which makes new Ref for borrowed data.
+    pub fn peek_front(&self) -> Option<Ref<T>> {
+        self.head
+            .as_ref()
+            .map(|rccell_node| Ref::map(rccell_node.borrow(), |node| &node.elem))
+    }
 }
 
 impl<T> Node<T> {
@@ -76,7 +87,7 @@ impl<T> Node<T> {
 
 #[cfg(test)]
 mod test {
-    use super::List;
+    use super::*;
 
     #[test]
     fn basics() {
@@ -105,5 +116,21 @@ mod test {
         // Check exhaustion
         assert_eq!(list.pop_front(), Some(1));
         assert_eq!(list.pop_front(), None);
+    }
+
+    #[test]
+    fn peek() {
+        let mut list = List::new();
+        assert!(list.peek_front().is_none());
+        list.push_front(1);
+        list.push_front(2);
+        list.push_front(3);
+
+        assert_eq!(&*list.peek_front().unwrap(), &3);
+        assert_eq!(list.pop_front(), Some(3));
+        assert_eq!(&*list.peek_front().unwrap(), &2);
+        assert_eq!(list.pop_front(), Some(2));
+        assert_eq!(&*list.peek_front().unwrap(), &1);
+        assert_eq!(list.pop_front(), Some(1));
     }
 }
