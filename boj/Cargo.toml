@@ -2,6 +2,7 @@
 name = "boj"
 version = "0.1.0"
 edition = "2021"
+description = "You can check the problem at boj.kr/{{problem_number}}"
 
 [dependencies]
 rand = "0.8"
