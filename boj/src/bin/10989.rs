@@ -21,7 +21,7 @@ fn main() -> Result<(), io::Error> {
 
     for (i, el) in num_list.into_iter().enumerate().filter(|(_, el)| *el > 0) {
         for _ in 0..el {
-            write!(output, "{}", format!("{}\n", i))?;
+            write!(output, "{}\n", i)?;
         }
     }
 
