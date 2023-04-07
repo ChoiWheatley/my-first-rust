@@ -142,6 +142,26 @@ impl<T> List<T> {
     }
 }
 
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop_front()
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.pop_back()
+    }
+}
+
+impl<T> List<T> {
+    pub fn into_iter(self) -> IntoIter<T> {
+        IntoIter(self)
+    }
+}
+
 impl<T> Node<T> {
     fn new(elem: T) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Node {
@@ -225,5 +245,25 @@ mod test {
         assert_eq!(list.pop_front(), Some(2));
         assert_eq!(&*list.peek_front().unwrap(), &1);
         assert_eq!(list.pop_front(), Some(1));
+    }
+
+    #[test]
+    fn into_iter() {
+        let mut list = List::new();
+        list.push_back(1);
+        list.push_back(2);
+        list.push_back(3);
+        list.push_back(4);
+        list.push_back(5);
+
+        let mut iter = list.into_iter();
+
+        assert_eq!(Some(1), iter.next());
+        assert_eq!(Some(5), iter.next_back());
+        assert_eq!(Some(2), iter.next());
+        assert_eq!(Some(4), iter.next_back());
+        assert_eq!(Some(3), iter.next());
+        assert_eq!(None, iter.next_back());
+        assert_eq!(None, iter.next());
     }
 }
