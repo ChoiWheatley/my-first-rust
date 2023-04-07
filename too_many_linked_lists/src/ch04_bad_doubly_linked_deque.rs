@@ -21,6 +21,10 @@ struct Node<T> {
     prev: Link<T>,
 }
 
+pub struct IntoIter<T>(List<T>);
+
+pub struct Iter<'a, T>(Option<Ref<'a, Node<T>>>);
+
 impl<T> List<T> {
     pub fn new() -> Self {
         List {
