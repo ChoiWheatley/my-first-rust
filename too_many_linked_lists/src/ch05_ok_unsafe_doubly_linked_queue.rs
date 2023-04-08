@@ -14,19 +14,21 @@ pub struct List<T> {
     tail: Link<T>,
 }
 
+pub struct IntoIter<T>(List<T>);
+
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
+
 type Link<T> = *mut Node<T>;
 struct Node<T> {
     elem: T,
     next: Link<T>,
 }
-
-pub struct Iter<'a, T> {
-    next: Option<&'a Node<T>>,
-}
-pub struct IterMut<'a, T> {
-    next: Option<&'a mut Node<T>>,
-}
-pub struct IntoIter<T>(List<T>);
 
 impl<T> List<T> {
     pub fn new() -> Self {
@@ -36,69 +38,60 @@ impl<T> List<T> {
         }
     }
 
-    /// This is queue, so push operation can be done in its tail
+    /// push new node into the tail
     pub fn push(&mut self, elem: T) {
-        unsafe {
-            /// create a new node in a heap area, turn it exactly into raw pointer
-            let new_tail = Box::into_raw(Box::new(Node {
-                elem,
-                next: null_mut(),
-            }));
-            if self.head.is_null() {
-                self.head = new_tail;
-            } else {
-                (*self.tail).next = new_tail;
+        /// allocate new node to the heap
+        let new_node = Box::into_raw(Box::new(Node {
+            elem,
+            next: null_mut(),
+        }));
+        if self.head.is_null() {
+            self.head = new_node;
+        } else {
+            unsafe {
+                (*self.tail).next = new_node;
             }
-            self.tail = new_tail;
         }
+        self.tail = new_node;
     }
 
-    /// This is queue, so pop operation can be done in its head
+    /// pop from head and make other things tidy
     pub fn pop(&mut self) -> Option<T> {
         if self.head.is_null() {
             None
         } else {
-            unsafe {
-                // Re-wrap into Box, this object will be dropped when this block ends
-                let ret = Box::from_raw(self.head);
+            let old_head = unsafe { Box::from_raw(self.head) };
+            self.head = old_head.next;
 
-                self.head = ret.next;
-
-                if self.head.is_null() {
-                    // empty tail again!
-                    self.tail = null_mut();
-                }
-
-                Some(ret.elem)
+            // tidy
+            if self.head.is_null() {
+                // empty tail again!
+                self.tail = null_mut();
             }
+
+            Some(old_head.elem)
         }
     }
 
     pub fn peek(&self) -> Option<&T> {
         unsafe { self.head.as_ref().map(|node| &node.elem) }
     }
+
     pub fn peek_mut(&mut self) -> Option<&mut T> {
         unsafe { self.head.as_mut().map(|node| &mut node.elem) }
     }
 }
 
-impl<T> Drop for List<T> {
-    fn drop(&mut self) {
-        while let Some(cur) = self.pop() {}
-    }
-}
-
 impl<'a, T> List<T> {
-    /// consumes list and iterate elements
     pub fn into_iter(self) -> IntoIter<T> {
         IntoIter(self)
     }
-    pub fn iter(&self) -> Iter<'_, T> {
+    pub fn iter(&self) -> Iter<'a, T> {
         Iter {
             next: unsafe { self.head.as_ref() },
         }
     }
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+    pub fn iter_mut(&mut self) -> IterMut<'a, T> {
         IterMut {
             next: unsafe { self.head.as_mut() },
         }
@@ -117,12 +110,10 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            self.next.take().map(|node| {
-                self.next = node.next.as_ref();
-                &node.elem
-            })
-        }
+        self.next.take().map(|node| {
+            self.next = unsafe { (node.next.as_ref()) };
+            &node.elem
+        })
     }
 }
 
@@ -130,12 +121,16 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            self.next.take().map(|node| {
-                self.next = node.next.as_mut();
-                &mut node.elem
-            })
-        }
+        self.next.take().map(|node| {
+            self.next = unsafe { node.next.as_mut() };
+            &mut node.elem
+        })
+    }
+}
+
+impl<T> Drop for List<T> {
+    fn drop(&mut self) {
+        while let Some(cur) = self.pop() {}
     }
 }
 

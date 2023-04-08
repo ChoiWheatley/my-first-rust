@@ -90,3 +90,14 @@ So, there was the use of persistent list, then how to impliment it? What is some
 In this example, we use `prepend`, `tail` and `head` for interfaces, repectively similar to `push`, `pop`, `get`.
 
 TODO: right a doc about things I have learned in this chapter
+
+# ch05_ok_unsafe_doubly_linked_queue
+
+Behold `unsafe` realm. You gonna feel light-headed...
+
+To avoid undefined behavior which cannot be revealed at compile time, the author introduces **MIRI**, a Middle level Intermediate Representation Interpretator, a powerful tool for unvail UBs throughout runtime! It checks borrow rule as *tags*, it pushes and pops tags as reborrow happens. There are many kinds of patterns that might introduce error-prone memory manipulation, so author pointed few rules from lots of fuss
+
+1. When you convert raw pointers from safe ones, NEVER use safe pointers until unsafe pointers have done with use! (Borrowed Stack Invalidation)
+2. When casting variables or references to raw pointers, MAKE SURE the mutability rules always follows its parent's one!
+3. Interior mutability is the most obvious thing, which can lead us unwanted mutation from nowhere, for example, `UnsafeCell` uses raw-pointers for its magical interior mutability, without any restriction. Be careful when you borrow some variables as mutable, it can be changed at any time!
+
