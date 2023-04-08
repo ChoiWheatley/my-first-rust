@@ -6,7 +6,9 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 /// Let's make doubly-linked deque!!!
-///
+/// `Iter` and `IterMut` cannot be implemented well, the author of TMLL just
+/// gave up. The reason of failure lives inside of interior mutability and
+/// trying to drop when other user also holds copy of `Ref`s.
 
 pub struct List<T> {
     head: Link<T>,
@@ -159,6 +161,24 @@ impl<T> DoubleEndedIterator for IntoIter<T> {
 impl<T> List<T> {
     pub fn into_iter(self) -> IntoIter<T> {
         IntoIter(self)
+    }
+}
+
+// impl<'a, T> Iterator for Iter<'a, T> {
+//     type Item = Ref<'a, T>;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.0.take().map(|ref_node| {
+//             let (next, this) = Ref::map_split(ref_node, |node| (&node.next, &node.elem));
+//             self.0 = next.as_ref().map(|head| head.borrow());
+//             this
+//         })
+//     }
+// }
+
+impl<T> List<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter(self.head.as_ref().map(|head| head.borrow()))
     }
 }
 
