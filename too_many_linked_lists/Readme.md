@@ -89,6 +89,14 @@ So, there was the use of persistent list, then how to impliment it? What is some
 
 In this example, we use `prepend`, `tail` and `head` for interfaces, respectively similar to `push`, `pop`, `get`.
 
+# ch04_bad_doubly_linked_deque
+
+`Rc<RefCell<Something>>` cannot solve everything, especially in this pervasive self-linking structure. Node can point upto two other nodes and vice versa, which lead duplicated references between field. 
+
+`RefCell` have a method named `borrow` and `borrow_mut` which can literally borrow inner value wrapped with `Ref` and `RefMut` cannot be long lasting until outside of the block. In this example, we couldn't hide `Ref`-thing in our `peek` methods
+
+Author gave up implementing `Iter` and `IterMut` which hits dead end. `Ref` and `RefMut` thing again! We cannot borrow inner type of `RefCell` without handing over it as whole, which doesn't conform our encapsulation policy...
+
 
 # ch05_ok_unsafe_doubly_linked_queue
 
