@@ -87,9 +87,8 @@ Branches!! Yes! Git brances are persistent list! every git commit is HEAD of its
 
 So, there was the use of persistent list, then how to impliment it? What is some common protocols?
 
-In this example, we use `prepend`, `tail` and `head` for interfaces, repectively similar to `push`, `pop`, `get`.
+In this example, we use `prepend`, `tail` and `head` for interfaces, respectively similar to `push`, `pop`, `get`.
 
-TODO: right a doc about things I have learned in this chapter
 
 # ch05_ok_unsafe_doubly_linked_queue
 
