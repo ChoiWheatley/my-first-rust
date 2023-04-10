@@ -3,6 +3,7 @@ pub mod ch02_ok_linked_stack;
 mod ch03_persistent_stack;
 mod ch04_bad_doubly_linked_deque;
 mod ch05_ok_unsafe_doubly_linked_queue;
+mod ch06_prod_doubly_deque;
 fn main() {
     unsafe {
         let mut data = Box::new(10);
