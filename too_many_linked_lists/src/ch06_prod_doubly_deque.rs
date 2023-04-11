@@ -10,7 +10,7 @@
 ///     - Seek back and forth with it.
 /// - NonNull
 ///     - What???? Nullable NonNull???
-use std::{fmt::Debug, hash::Hash, marker::PhantomData, ptr::NonNull};
+use std::{fmt::Debug, hash::Hash, io::Cursor, marker::PhantomData, ptr::NonNull};
 
 pub struct LinkedList<T> {
     front: Link<T>,
@@ -818,3 +818,53 @@ mod test {
         assert!(map.is_empty());
     }
 }
+
+/// Compile-time assertions checking what is Send and Sync
+#[allow(dead_code)]
+fn assert_properties() {
+    fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
+
+    is_send::<LinkedList<i32>>();
+    is_sync::<LinkedList<i32>>();
+
+    is_send::<IntoIter<i32>>();
+    is_send::<IntoIter<i32>>();
+
+    is_send::<Iter<i32>>();
+    is_sync::<Iter<i32>>();
+
+    // is_send::<IterMut<i32>>();
+    // is_sync::<IterMut<i32>>();
+
+    is_send::<Cursor<i32>>();
+    is_sync::<Cursor<i32>>();
+
+    fn linked_list_covariant<'a, T>(x: LinkedList<&'static T>) -> LinkedList<&'a T> {
+        x
+    }
+    fn iter_covariant<'i, 'a, T>(x: Iter<'i, &'static T>) -> Iter<'i, &'a T> {
+        x
+    }
+    fn into_iter_covariant<'a, T>(x: IntoIter<&'static T>) -> IntoIter<&'a T> {
+        x
+    }
+}
+
+/// Let's opt-back-in Send and Sync to our `LinkedList` which was
+/// firstly opt-out because of using raw pointers
+unsafe impl<T: Send> Send for LinkedList<T> {}
+unsafe impl<T: Sync> Sync for LinkedList<T> {}
+unsafe impl<'a, T: Send> Send for Iter<'a, T> {}
+unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
+unsafe impl<T: Send> Send for IntoIter<T> {}
+unsafe impl<T: Sync> Sync for IntoIter<T> {}
+// IterMut DEFINITELY shouldn't be covariant, because it is like `&mut T`
+// unsafe impl<'a, T: Send> Send for IterMut<'a, T> {}
+// unsafe impl<'a, T: Sync> Sync for IterMut<'a, T> {}
+
+/// This Doccomment can be compiled independently
+/// ```
+/// fn iter_mut_covariant<'i, 'a, T>(x: IterMut<'i, &'static T>) -> IterMut<'i, &'a T> { x }
+/// ```
+fn iter_mut_invariant() {}
