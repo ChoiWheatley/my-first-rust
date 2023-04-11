@@ -46,6 +46,18 @@ pub struct IterMut<'a, T> {
 /// consuming iterator
 pub struct IntoIter<T>(LinkedList<T>);
 
+/// Move back and forth freely between elements. Cursor also can walk over between lists!
+/// for example, when you splice two lists, you can
+/// jump between lists's elements!
+///
+/// For conformance of single mutably-borrow-rule, `Cursor` takes list as mutable reference.
+/// acquiring each cursor's element also need to be borrowed by once!
+pub struct CursorMut<'a, T> {
+    cur: Link<T>,
+    list: &'a mut LinkedList<T>,
+    index: Option<usize>,
+}
+
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
         Self {
@@ -423,6 +435,487 @@ impl<T> ExactSizeIterator for IntoIter<T> {
 impl<'a, T> ExactSizeIterator for IterMut<'a, T> {
     fn len(&self) -> usize {
         self.len
+    }
+}
+
+impl<T> LinkedList<T> {
+    pub fn cursor_mut(&mut self) -> CursorMut<T> {
+        CursorMut {
+            cur: None,
+            list: self,
+            index: None, // ghost at first place 👻
+        }
+    }
+}
+
+impl<'a, T> CursorMut<'a, T> {
+    pub fn index(&self) -> Option<usize> {
+        self.index
+    }
+
+    /// Interesting four cases
+    /// 1. normal case: move on to the next(back) cursor
+    /// 2. normal case, hit ghost: clean up index
+    /// 3. ghost case, very beginning
+    /// 4. ghost case, empty list
+    pub fn move_next(&mut self) {
+        if let Some(cur) = self.cur {
+            // we are placed in somwhere in the list
+            unsafe {
+                self.cur = (*cur.as_ptr()).back;
+                if self.cur.is_some() {
+                    // new node is available
+                    self.index = self.index.map(|idx| idx + 1);
+                } else {
+                    // new node is ghost, no more index
+                    self.index = None;
+                }
+            }
+        } else if !self.list.is_empty() {
+            // we are at the very beginning
+            self.cur = self.list.front;
+            self.index = Some(0);
+        } else { // that was a empty list... do nothing
+        }
+    }
+
+    pub fn move_prev(&mut self) {
+        if let Some(cur) = self.cur {
+            // normal case
+            unsafe {
+                self.cur = (*cur.as_ptr()).front;
+                if self.cur.is_some() {
+                    // new node is available
+                    self.index = self.index.map(|idx| idx - 1);
+                } else {
+                    // new node hit the ghost, no more index
+                    self.index = None;
+                }
+            }
+        } else if !self.list.is_empty() {
+            // ghost case, with very beginning (at the back)
+            self.cur = self.list.back;
+            self.index = Some(self.list.len() - 1);
+        } else {
+            // ghost case, empty list
+        }
+    }
+
+    /// get current element pointed to  
+    pub fn current(&mut self) -> Option<&mut T> {
+        self.cur.map(|node| unsafe { &mut (*node.as_ptr()).elem })
+    }
+
+    pub fn peek_next(&mut self) -> Option<&mut T> {
+        self.cur
+            .and_then(|node| unsafe { (*node.as_ptr()).back })
+            .map(|node| unsafe { &mut (*node.as_ptr()).elem })
+    }
+
+    pub fn peek_prev(&mut self) -> Option<&mut T> {
+        self.cur
+            .and_then(|node| unsafe { (*node.as_ptr()).front })
+            .map(|node| unsafe { &mut (*node.as_ptr()).elem })
+    }
+
+    /// Split list in a range of [list.front, cur) and [cur, list.back]
+    /// return the first list, original list will be changed into second one.
+    ///
+    /// before
+    /// ```
+    /// l.f -> A <-> B <-> C <-> D <- l.b
+    ///                    ^
+    ///                   cur
+    /// ```
+    ///
+    /// after
+    /// ```
+    /// return: {l.f -> A <-> B <- l.b}
+    ///
+    /// {l.f -> C <-> D <- l.b}
+    ///         ^
+    ///        cur
+    /// ```
+    ///
+    pub fn split_before(&mut self) -> LinkedList<T> {
+        if self.cur.is_none() {
+            // two possibilities, which have same consequence:
+            // 1. we hit the list's back
+            // 2. the list itself is empty
+            return std::mem::replace(self.list, LinkedList::new());
+        }
+        // normal case
+        unsafe {
+            let cur = self.cur.unwrap();
+            let prev = (*cur.as_ptr()).front;
+
+            let new_list = LinkedList {
+                front: self.list.front,
+                back: prev,
+                len: self.index.unwrap(),
+                _boo: PhantomData,
+            };
+            let old_list = LinkedList {
+                front: self.cur,
+                back: self.list.back,
+                len: self.list.len() - self.index.unwrap(),
+                _boo: PhantomData,
+            };
+
+            // break the links between cur and prev
+            if let Some(prev) = prev {
+                (*prev.as_ptr()).back = None;
+                (*cur.as_ptr()).front = None;
+            }
+
+            // produce the result
+            self.list.front = old_list.front;
+            self.list.len = old_list.len;
+            self.index = Some(0);
+
+            new_list
+        }
+    }
+    /// Split list in a range of `[list.front, cur]` and `(cur, list.back]`
+    /// return the second list, original list will be changed into first one.
+    ///
+    /// before
+    /// ```
+    /// l.f -> A <-> B <-> C <-> D <- l.b
+    ///              ^
+    ///             cur
+    /// ```
+    ///
+    /// after
+    /// ```
+    /// {l.f -> A <-> B <- l.b}
+    ///               ^
+    ///              cur
+    ///
+    /// return: {l.f -> C <-> D <- l.b}
+    /// ```
+    ///
+    pub fn split_after(&mut self) -> LinkedList<T> {
+        if self.cur.is_none() {
+            // corner case:
+            // 1. we hit the list's front
+            // 2. the list itself is empty
+            return std::mem::replace(self.list, LinkedList::new());
+        }
+        // normal case
+        unsafe {
+            let cur = self.cur.unwrap();
+            let post = (*cur.as_ptr()).back;
+
+            let old_list = LinkedList {
+                front: self.list.front,
+                back: self.cur,
+                len: self.index.unwrap() + 1,
+                _boo: PhantomData,
+            };
+            let new_list = LinkedList {
+                front: post,
+                back: self.list.back,
+                len: self.list.len - old_list.len,
+                _boo: PhantomData,
+            };
+
+            // break the links between cur and next
+            if let Some(post) = post {
+                (*post.as_ptr()).front = None;
+                (*cur.as_ptr()).back = None;
+            }
+
+            // produce the result
+            self.list.front = old_list.front;
+            self.list.back = old_list.back;
+            self.list.len = old_list.len;
+            self.index = self.index; // index not changed
+
+            new_list
+        }
+    }
+
+    /// Consume other list, grafts its contents into ours.
+    ///
+    /// before
+    /// ```
+    /// {A-B-C-D}.splice_before({1-2-3})
+    ///      ^
+    ///     cur
+    /// ```
+    /// after
+    /// ```
+    /// {A-B-1-2-3-C-D}
+    ///            ^
+    ///           cur
+    /// ```
+    pub fn splice_before(&mut self, mut other: LinkedList<T>) {
+        if other.is_empty() {
+            return; // do nothing
+        }
+
+        let self_len = self.list.len();
+        let other_len = other.len();
+
+        let other_front = other.front.take().unwrap();
+        let other_back = other.back.take().unwrap();
+
+        unsafe {
+            match self.cur {
+                Some(cur) if self.index == Some(0) => {
+                    // append front!
+                    // 1. link two pointers
+                    (*self.list.front.unwrap().as_ptr()).front = Some(other_back);
+                    (*other_back.as_ptr()).back = self.list.front;
+                    // 2. change list's front
+                    self.list.front = other.front.take();
+                    // 3. Also you have to make sure our index has changed!!
+                    self.index = self.index.map(|idx| idx + other_len);
+                }
+
+                Some(cur) => {
+                    // general case! link four pointers
+                    let prev = (*cur.as_ptr()).front.unwrap();
+                    (*prev.as_ptr()).back = Some(other_front);
+                    (*other_front.as_ptr()).front = Some(prev);
+                    (*cur.as_ptr()).front = Some(other_back);
+                    (*other_back.as_ptr()).back = Some(cur);
+                    // Also you have to make sure our index has changed
+                    self.index = self.index.map(|idx| idx + other_len);
+                }
+
+                None if self.list.is_empty() => {
+                    // just replace other list into ours
+                    std::mem::swap(self.list, &mut other);
+                }
+
+                _ => {
+                    // self.list is not empty, assume our cursor hit the list.back
+                    // append back!
+                    // 1. link two pointers
+                    (*self.list.back.unwrap().as_ptr()).back = Some(other_front);
+                    (*other_front.as_ptr()).front = self.list.back;
+                    // 2. change our list's back
+                    self.list.back = Some(other_back);
+                }
+            }
+        } // end of unsafe
+
+        // make sure our list's length changed(or not)!!
+        self.list.len = self_len + other_len;
+    }
+
+    /// Consume other list, grafts contents into ours
+    /// before
+    /// ```
+    /// {A-B-C-D}.splice_before({1-2-3})
+    ///    ^
+    ///   cur
+    /// ```
+    /// after
+    /// ```
+    /// {A-B-1-2-3-C-D}
+    ///    ^
+    ///   cur
+    /// ```
+    pub fn splice_after(&mut self, mut other: LinkedList<T>) {
+        if other.is_empty() {
+            // do nothing
+            return;
+        }
+        let other_front = other.front.unwrap();
+        let other_back = other.back.unwrap();
+        let self_len = self.list.len();
+        let other_len = other.len();
+
+        unsafe {
+            match self.cur {
+                Some(cur) if self.list.back == self.cur => {
+                    // append back!
+                    // 1. link two pointers
+                    (*self.list.back.unwrap().as_ptr()).back = Some(other_front);
+                    (*other_front.as_ptr()).front = self.list.back;
+                    // 2. change our list's back
+                    self.list.back = Some(other_back);
+                }
+
+                Some(cur) => {
+                    // general case! link four pointers
+                    let post = (*cur.as_ptr()).back.unwrap();
+                    (*cur.as_ptr()).back = Some(other_front);
+                    (*other_front.as_ptr()).front = Some(cur);
+                    (*post.as_ptr()).front = Some(other_back);
+                    (*other_back.as_ptr()).back = Some(post);
+                }
+
+                None if self.list.is_empty() => {
+                    // just replace other list into ours
+                    std::mem::swap(self.list, &mut other);
+                }
+
+                _ => {
+                    // self.list is not empty
+                    // append front!
+                    // 1. link two pointers
+                    (*self.list.front.unwrap().as_ptr()).front = Some(other_back);
+                    (*other_back.as_ptr()).back = self.list.front;
+                    // 2. change list's front
+                    self.list.front = other.front.take();
+                    // 3. change index number
+                    self.index = self.index.map(|idx| idx + other_len);
+                }
+            }
+        } // end of unsafe
+
+        // finally we can change our list's length
+        self.list.len = self_len + other_len;
+    }
+
+    pub fn insert_before(&mut self, elem: T) {
+        match self.cur {
+            Some(cur) if self.list.front == self.cur => {
+                // cur is front
+                self.list.push_front(elem);
+                self.index = self.index.map(|idx| idx + 1);
+            }
+            Some(cur) => {
+                // normal case, create new elem and graft between
+                // prev and cur
+                unsafe {
+                    let prev = (*cur.as_ptr()).front.unwrap();
+                    let new_node = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
+                        front: Some(prev),
+                        back: Some(cur),
+                        elem,
+                    })));
+                    (*prev.as_ptr()).back = Some(new_node);
+                    (*cur.as_ptr()).front = Some(new_node);
+                }
+                self.index = self.index.map(|idx| idx + 1);
+            }
+            None => {
+                // assume cur hit list.back
+                self.list.push_back(elem);
+            }
+        }
+        self.list.len += 1;
+    }
+
+    pub fn insert_after(&mut self, elem: T) {
+        match self.cur {
+            Some(cur) if self.list.back == self.cur => {
+                // cur is back
+                self.list.push_back(elem);
+            }
+            Some(cur) => {
+                // normal case, create new elem and graft between
+                // cur and post
+                unsafe {
+                    let post = (*cur.as_ptr()).back.unwrap();
+                    let new_node = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
+                        front: Some(cur),
+                        back: Some(post),
+                        elem,
+                    })));
+                    (*post.as_ptr()).front = Some(new_node);
+                    (*cur.as_ptr()).back = Some(new_node);
+                }
+            }
+            None => {
+                // assume cur hit list.front
+                self.list.push_front(elem);
+                self.index = self.index.map(|idx| idx + 1);
+            }
+        }
+        self.list.len += 1;
+    }
+
+    /// remove current element(if exists) and return it.
+    /// cur will point right next(after) one
+    pub fn remove(&mut self) -> Option<T> {
+        self.cur.map(|cur| unsafe {
+            // convert from raw pointer to owned Box object
+            let cur = Box::from_raw(cur.as_ptr());
+            // link two nodes between cur
+            match (cur.front, cur.back) {
+                (None, None) => {
+                    // this list will be emptied
+                    self.index = None;
+                }
+                (None, Some(back)) => {
+                    // cur is front
+                    self.list.front = Some(back);
+                }
+                (Some(front), None) => {
+                    // cur is back
+                    self.list.back = Some(front);
+                }
+                (Some(front), Some(back)) => {
+                    // cur is mid
+                    (*front.as_ptr()).back = Some(back);
+                    (*back.as_ptr()).front = Some(front);
+                }
+            }
+            // move cursor onto the next(after) node
+            self.cur = cur.back;
+            cur.elem
+        })
+    }
+}
+
+impl<T> LinkedList<T> {
+    /// before
+    /// ```
+    /// {A-B-C}.append_back({1-2-3})
+    /// ```
+    /// after
+    /// ```
+    /// {A-B-C-1-2-3}
+    /// ```
+    pub fn append_back(&mut self, mut other: LinkedList<T>) {
+        if self.is_empty() {
+            std::mem::swap(self, &mut other);
+            return;
+        }
+        if other.is_empty() {
+            // do nothing
+            return;
+        }
+        let self_back = self.back.unwrap();
+        let other_front = other.front.unwrap();
+        unsafe {
+            (*self_back.as_ptr()).back = Some(other_front);
+            (*other_front.as_ptr()).front = Some(self_back);
+        }
+        self.back = other.back;
+        self.len += other.len();
+    }
+
+    /// before
+    /// ```
+    /// {A-B-C}.append_front({1-2-3})
+    /// ```
+    /// after
+    /// ```
+    /// {1-2-3-A-B-C}
+    /// ```
+    pub fn append_front(&mut self, mut other: LinkedList<T>) {
+        if self.is_empty() {
+            std::mem::swap(self, &mut other);
+            return;
+        }
+        if other.is_empty() {
+            return;
+        }
+        let self_front = self.front.unwrap();
+        let other_back = other.back.unwrap();
+        unsafe {
+            (*self_front.as_ptr()).front = Some(other_back);
+            (*other_back.as_ptr()).back = Some(self_front);
+        }
+        self.front = other.front;
+        self.len += other.len();
     }
 }
 
