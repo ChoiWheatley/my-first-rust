@@ -66,6 +66,12 @@ impl<T> Drop for List<T> {
     }
 }
 
+impl<T> Default for List<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// IntoIter **consumes** data members
 pub struct IntoIter<T>(List<T>);
 /// Iter only borrows `&Node<T>` but we must ensure lifetime is valid during being used!
@@ -206,7 +212,9 @@ mod tests {
         assert_eq!(list.peek(), Some(&3));
         assert_eq!(list.peek_mut(), Some(&mut 3));
 
-        list.peek_mut().map(|val| *val = 20230331);
+        if let Some(val) = list.peek_mut() {
+            *val = 20230331;
+        }
         assert_eq!(list.peek(), Some(&20230331));
         assert_eq!(list.pop(), Some(20230331));
     }
@@ -262,6 +270,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::option_as_ref_deref)]
     fn as_deref() {
         struct Node(i32);
         let original = Node(1);
