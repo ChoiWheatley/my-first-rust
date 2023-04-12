@@ -176,7 +176,7 @@ mod test {
         let mut consumed_iterator = list.into_iter();
         let mut answer_iterator = ls.iter();
 
-        while let Some(answer) = answer_iterator.next() {
+        for answer in answer_iterator {
             assert_eq!(*answer, consumed_iterator.next().unwrap());
         }
 
