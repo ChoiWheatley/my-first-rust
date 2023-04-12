@@ -1451,8 +1451,12 @@ mod test {
         );
     }
 
-    fn check_links<T>(_list: &LinkedList<T>) {
-        // would be good to do this!
+    fn check_links<T: Eq + Debug>(list: &LinkedList<T>) {
+        let from_front: Vec<_> = list.iter().collect();
+        let from_back: Vec<_> = list.iter().rev().collect();
+        let re_reved: Vec<_> = from_back.into_iter().rev().collect();
+
+        assert_eq!(from_front, re_reved);
     }
 }
 
