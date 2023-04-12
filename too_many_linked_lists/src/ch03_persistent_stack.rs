@@ -27,7 +27,7 @@ impl<T> List<T> {
         List {
             head: Some(Arc::new(Node {
                 elem,
-                next: self.head.as_ref().map(|rc_node| rc_node.clone()),
+                next: self.head.as_ref().cloned(),
             })),
         }
     }
