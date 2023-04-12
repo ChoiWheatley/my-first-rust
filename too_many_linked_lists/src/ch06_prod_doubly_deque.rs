@@ -194,7 +194,7 @@ impl<T> LinkedList<T> {
         self.len == 0
     }
     pub fn clear(&mut self) {
-        while let Some(_) = self.pop_front() {}
+        while self.pop_front().is_some() {}
     }
 }
 
@@ -205,7 +205,7 @@ impl<T> Default for LinkedList<T> {
 }
 impl<T> Drop for LinkedList<T> {
     fn drop(&mut self) {
-        while let Some(_) = self.pop_front() {}
+        while self.pop_front().is_some() {}
     }
 }
 impl<T> Clone for LinkedList<T>
@@ -252,10 +252,6 @@ impl<T: PartialEq> PartialEq for LinkedList<T> {
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len() && self.iter().eq(other)
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.len() != other.len() || self.iter().ne(other)
-    }
 }
 
 impl<T: Eq> Eq for LinkedList<T> {}
@@ -281,7 +277,7 @@ impl<T: Hash> Hash for LinkedList<T> {
     }
 }
 
-impl<'a, T> LinkedList<T> {
+impl<T> LinkedList<T> {
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             front: self.front,
@@ -1099,7 +1095,7 @@ mod test {
         seq.iter().for_each(|&e| ls.push_back(e));
 
         let mut cur = (&ls).into_iter();
-        while let Some(_) = cur.next() {} // drain?
+        while cur.next().is_some() {} // drain?
 
         // unchanged?
         assert_eq!(ls.len(), seq.len());
@@ -1266,11 +1262,12 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::zero_divided_by_zero, clippy::neg_cmp_op_on_partial_ord)]
     fn test_ord_nan() {
         let nan = 0.0f64 / 0.0;
         let n = list_from(&[nan]);
         let m = list_from(&[nan]);
-        assert!(!(n < m));
+        assert!((n.partial_cmp(&m)).is_none()); // clippy says that `partial_cmp` can detect uncomparable pair
         assert!(!(n > m));
         assert!(!(n <= m));
         assert!(!(n >= m));
